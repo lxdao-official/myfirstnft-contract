@@ -108,6 +108,10 @@ contract MFNFT is ERC721A, Ownable {
         emit SignerChanged(signer);
     }
 
+    function verifySigner(address signer) public view returns (bool) {
+        return signer == _signer;
+    }
+
     function tokenURI(uint256 tokenId)
         public
         view
