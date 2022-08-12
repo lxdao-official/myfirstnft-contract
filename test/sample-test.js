@@ -36,60 +36,47 @@ describe("contract test", function () {
   });
 
   it("mint test #4 - cannot mint due to status ", async function () {
-    try {
-      const hash = ethers.utils.keccak256(
-        ethers.utils.defaultAbiCoder.encode(["string"], [imageIPFSURI])
-      );
-      const message = ethers.utils.arrayify(hash);
-      const signature = await originalSigner.signMessage(message);
+    const hash = ethers.utils.keccak256(
+      ethers.utils.defaultAbiCoder.encode(["string"], [imageIPFSURI])
+    );
+    const message = ethers.utils.arrayify(hash);
+    const signature = await originalSigner.signMessage(message);
 
-      await hardhatToken.mint(imageIPFSURI, signature);
-    } catch (error) {
-      console.log("error: ", error.message);
-      expect(error.message).to.equal(
-        "VM Exception while processing transaction: reverted with reason string 'MFNFT: Public mint is not active.'"
-      );
-    }
+    await expect(hardhatToken.mint(imageIPFSURI, signature)).to.be.revertedWith(
+      "VM Exception while processing transaction: reverted with reason string 'MFNFT: Public mint is not active.'"
+    );
   });
 
   it("mint test #5 - cannot mint due to verify", async function () {
-    try {
-      await hardhatToken.setStatus(1);
+    await hardhatToken.setStatus(1);
 
-      const hash = ethers.utils.keccak256(
-        ethers.utils.defaultAbiCoder.encode(["string"], [imageIPFSURI])
-      );
-      const message = ethers.utils.arrayify(hash);
-      const signature = await changedSigner.signMessage(message);
+    const hash = ethers.utils.keccak256(
+      ethers.utils.defaultAbiCoder.encode(["string"], [imageIPFSURI])
+    );
+    const message = ethers.utils.arrayify(hash);
+    // uncorrected signer
+    const signature = await changedSigner.signMessage(message);
 
-      await hardhatToken.mint(imageIPFSURI, signature);
-    } catch (error) {
-      console.log("error: ", error.message);
-      expect(error.message).to.equal(
-        "VM Exception while processing transaction: reverted with reason string 'MFNFT: Invalid signature.'"
-      );
-    }
+    await expect(hardhatToken.mint(imageIPFSURI, signature)).to.be.revertedWith(
+      "VM Exception while processing transaction: reverted with reason string 'MFNFT: Invalid signature.'"
+    );
   });
 
   it("mint test #6 - only mint once", async function () {
-    try {
-      await hardhatToken.setStatus(1);
+    await hardhatToken.setStatus(1);
 
-      const hash = ethers.utils.keccak256(
-        ethers.utils.defaultAbiCoder.encode(["string"], [imageIPFSURI])
-      );
-      const message = ethers.utils.arrayify(hash);
-      const signature = await originalSigner.signMessage(message);
+    const hash = ethers.utils.keccak256(
+      ethers.utils.defaultAbiCoder.encode(["string"], [imageIPFSURI])
+    );
+    const message = ethers.utils.arrayify(hash);
+    const signature = await originalSigner.signMessage(message);
 
-      await hardhatToken.mint(imageIPFSURI, signature);
+    await hardhatToken.mint(imageIPFSURI, signature);
 
-      await hardhatToken.mint(imageIPFSURI, signature);
-    } catch (error) {
-      console.log("error: ", error.message);
-      expect(error.message).to.equal(
-        "VM Exception while processing transaction: reverted with reason string 'MFNFT: The wallet has already minted.'"
-      );
-    }
+    // mint again
+    await expect(hardhatToken.mint(imageIPFSURI, signature)).to.be.revertedWith(
+      "VM Exception while processing transaction: reverted with reason string 'MFNFT: The wallet has already minted.'"
+    );
   });
 
   it("mint test #7 - read empty token id", async function () {
