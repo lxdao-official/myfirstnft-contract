@@ -1,117 +1,85 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-// todo waiting for someone to improve the test
-// 1. signer change
-// 2. change status
-// 3. change price
-// 4. withdraw
-// 5. only mint once
-// 6. mint with ipfs or image
-// 7. read empty token id
-
-describe("Mint", function () {
-  const ipfsHash = "ipfs://QmZsvS4tsR1ijY8UsH5xrELiiKy4xXPUcXz8CuuCouJ3ZD";
+describe("contract test", function () {
   let owner;
-  let ownerAddr;
-  const ownerPrivateKey = "";
-  let signature;
-  let fakeToken = "";
+  let Token;
+  let hardhatToken;
+  let originalSigner;
+  let changedSigner;
+  const imageIPFSURI = "ipfs://QmZsvS4tsR1ijY8UsH5xrELiiKy4xXPUcXz8CuuCouJ3ZD";
 
-  (async function () {
-    // [owner] = await ethers.getSigners();
-    // ownerAddr = await owner.getAddress();
+  beforeEach(async function () {
+    Token = await ethers.getContractFactory("MFNFT");
+    [owner, originalSigner, changedSigner] = await ethers.getSigners();
+    hardhatToken = await Token.deploy(originalSigner.address);
+  });
+
+  it("Should set the right owner", async function () {
+    expect(await hardhatToken.owner()).to.equal(owner.address);
+  });
+
+  it("mint test #1 - Change signer ", async function () {
+    await hardhatToken.setSigner(changedSigner.address);
+    expect(await hardhatToken.verifySigner(changedSigner.address));
+  });
+
+  it("mint test #2 - Change status ", async function () {
+    await hardhatToken.setStatus(1);
+    expect(await hardhatToken.status()).to.equal(1);
+  });
+
+  it("mint test #3 - Change price ", async function () {
+    const wei = ethers.utils.parseEther("0.01");
+    await hardhatToken.setPrice(wei);
+    expect(await hardhatToken.price()).to.equal(wei);
+  });
+
+  it("mint test #4 - cannot mint due to status ", async function () {
+    const hash = ethers.utils.keccak256(
+      ethers.utils.defaultAbiCoder.encode(["string"], [imageIPFSURI])
+    );
+    const message = ethers.utils.arrayify(hash);
+    const signature = await originalSigner.signMessage(message);
+
+    await expect(hardhatToken.mint(imageIPFSURI, signature)).to.be.revertedWith(
+      "VM Exception while processing transaction: reverted with reason string 'MFNFT: Public mint is not active.'"
+    );
+  });
+
+  it("mint test #5 - cannot mint due to verify", async function () {
+    await hardhatToken.setStatus(1);
 
     const hash = ethers.utils.keccak256(
-      ethers.utils.defaultAbiCoder.encode(["string"], [ipfsHash])
+      ethers.utils.defaultAbiCoder.encode(["string"], [imageIPFSURI])
     );
-
-    const signerWallet = new ethers.Wallet(ownerPrivateKey);
     const message = ethers.utils.arrayify(hash);
-    console.log("message: ", message);
-    signature = await signerWallet.signMessage(message);
-    console.log("signature: ", signature);
-  })();
+    // uncorrected signer
+    const signature = await changedSigner.signMessage(message);
 
-  // before(async function () {
-  //   [owner] = await ethers.getSigners();
-  //   ownerAddr = await owner.getAddress();
+    await expect(hardhatToken.mint(imageIPFSURI, signature)).to.be.revertedWith(
+      "VM Exception while processing transaction: reverted with reason string 'MFNFT: Invalid signature.'"
+    );
+  });
 
-  //   const hash = ethers.utils.keccak256(
-  //     ethers.utils.defaultAbiCoder.encode(["string"], [ipfsHash])
-  //   );
+  it("mint test #6 - only mint once", async function () {
+    await hardhatToken.setStatus(1);
 
-  //   const signerWallet = new ethers.Wallet(ownerPrivateKey);
-  //   const message = ethers.utils.arrayify(hash);
-  //   signature = await signerWallet.signMessage(message);
-  // });
+    const hash = ethers.utils.keccak256(
+      ethers.utils.defaultAbiCoder.encode(["string"], [imageIPFSURI])
+    );
+    const message = ethers.utils.arrayify(hash);
+    const signature = await originalSigner.signMessage(message);
 
-  // it("Cannot mint due to status", async function () {
-  //   const MFNFT = await ethers.getContractFactory("MFNFT");
-  //   const mfnft = await MFNFT.deploy(ownerAddr);
-  //   await mfnft.deployed();
-  //   try {
-  //     await mfnft.mint(ipfsHash, signature);
-  //   } catch (error) {
-  //     console.log("error: ", error.message);
-  //     expect(error.message).to.equal(
-  //       "VM Exception while processing transaction: reverted with reason string 'MFNFT: Public sale is not active.'"
-  //     );
-  //   }
-  // });
+    await hardhatToken.mint(imageIPFSURI, signature);
 
-  // it("Cannot mint due to verify", async function () {
-  //   const MFNFT = await ethers.getContractFactory("MFNFT");
-  //   const mfnft = await MFNFT.deploy(ownerAddr);
-  //   await mfnft.deployed();
-  //   await mfnft.setStatus(1);
-  //   try {
-  //     await mfnft.mint(ipfsHash, fakeToken);
-  //   } catch (error) {
-  //     console.log("error: ", error.message);
-  //     expect(error.message).to.equal(
-  //       "VM Exception while processing transaction: reverted with reason string 'MFNFT: Invalid signature.'"
-  //     );
-  //   }
-  // });
+    // mint again
+    await expect(hardhatToken.mint(imageIPFSURI, signature)).to.be.revertedWith(
+      "VM Exception while processing transaction: reverted with reason string 'MFNFT: The wallet has already minted.'"
+    );
+  });
 
-  // it("Can mint after passing the verification", async function () {
-  //   const MFNFT = await ethers.getContractFactory("MFNFT");
-  //   const mfnft = await MFNFT.deploy(ownerAddr);
-  //   await mfnft.deployed();
-  //   await mfnft.setStatus(1);
-  //   await mfnft.mint(ipfsHash, signature);
-  //   expect(await mfnft.numberMinted(ownerAddr)).to.equal(1);
-  //   expect(await mfnft.tokenURI(0)).to.equal("ipfs://" + ipfsHash);
-  // });
-
-  // it("Can only mint one per wallet", async function () {
-  //   const MFNFT = await ethers.getContractFactory("MFNFT");
-  //   const mfnft = await MFNFT.deploy(ownerAddr);
-  //   await mfnft.deployed();
-  //   await mfnft.setStatus(1);
-  //   await mfnft.mint(ipfsHash, signature);
-  //   try {
-  //     await mfnft.mint(ipfsHash, signature);
-  //   } catch (error) {
-  //     console.log("error: ", error.message);
-  //     expect(error.message).to.equal(
-  //       "VM Exception while processing transaction: reverted with reason string 'MFNFT: The wallet has already minted.'"
-  //     );
-  //   }
-  // });
-
-  // it("Can set price", async function () {
-  //   const MFNFT = await ethers.getContractFactory("MFNFT");
-  //   const mfnft = await MFNFT.deploy(ownerAddr);
-  //   await mfnft.deployed();
-  //   await mfnft.setStatus(1);
-  //   await mfnft.setPrice(ethers.utils.parseEther("0.02"));
-  //   expect(await mfnft.price()).to.equal(ethers.utils.parseEther("0.02"));
-  //   await mfnft.mint(ipfsHash, signature, {
-  //     value: ethers.utils.parseEther("0.02"),
-  //   });
-  //   // todo add compare later
-  //   // const ownerBalance = await provider.getBalance(ownerAddr);
-  // });
+  it("mint test #7 - read empty token id", async function () {
+    expect(await hardhatToken.tokenURI(0)).to.equal("");
+  });
 });

@@ -19,4 +19,18 @@ module.exports = {
       globals: { task: true },
     },
   ],
+  rules: {
+    "node/no-unpublished-require": [
+      "error",
+      {
+        allowModules: [
+          "chai",
+          "dotenv",
+          "hardhat-gas-reporter",
+          "@nomiclabs/hardhat-etherscan",
+          "@nomiclabs/hardhat-waffle",
+        ],
+      },
+    ],
+  },
 };
